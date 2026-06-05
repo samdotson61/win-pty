@@ -1,0 +1,17 @@
+agent-pty
+=========
+
+Original work and the core Pty/tmux design and API:
+    AakeshF — https://github.com/AakeshF/agent-pty
+
+This repository is a fork that adds native Windows support (MSYS2 tmux driven
+from native Windows Python, with PowerShell 7 panes). The Windows port — the
+changes in agent_pty/session.py and agent_pty/io.py for cygwin-tmux
+compatibility, plus everything under windows/ and the *_win/_wrapper smoke
+tests — is by:
+    Sam Dotson
+
+The upstream project does not carry an explicit license. This fork is published
+to share the Windows port and credits the original author above; it claims no
+rights over the upstream code. If you intend to reuse the code, please consult
+the original author regarding licensing.

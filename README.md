@@ -2,6 +2,8 @@
 
 A persistent PTY tool for LLM coding agents. Closes the gap between stateless `Bash` and full computer-use, giving agents a real terminal session they can drive — and a human can attach to.
 
+> **This is a fork.** The original agent-pty is by **[AakeshF](https://github.com/AakeshF/agent-pty)** — all of the core design and API below is upstream's. This fork adds **native Windows support**: a real MSYS2 `tmux.exe` (no WSL) driven from native Windows Python, with **PowerShell 7 panes by default**. See **[`windows/README.md`](windows/README.md)** for setup, and [`NOTICE`](NOTICE) for credits. Windows port by Sam Dotson.
+
 ## Install
 
 Requires Python 3.11+ and tmux 3.5+.

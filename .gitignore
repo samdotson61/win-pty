@@ -9,3 +9,7 @@ dist/
 build/
 .DS_Store
 *.log
+
+# Windows native port
+.venv-win/
+/agent-pty-mcp.cmd
