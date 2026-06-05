@@ -49,7 +49,7 @@ Use a **native** CPython (python.org), *not* the MSYS2 Python — native Python
 has prebuilt wheels for `pydantic-core`/`mcp` and matches PyPI exactly.
 
 ```powershell
-git clone https://github.com/<you>/agent-pty.git C:\msys64\home\%USERNAME%\agent-pty
+git clone https://github.com/samdotson61/win-pty.git C:\msys64\home\%USERNAME%\agent-pty
 cd C:\msys64\home\%USERNAME%\agent-pty
 py -3 -m venv .venv-win
 .\.venv-win\Scripts\python -m pip install -e .

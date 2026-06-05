@@ -1,8 +1,8 @@
-# agent-pty
+# win-pty (agent-pty for Windows)
 
 A persistent PTY tool for LLM coding agents. Closes the gap between stateless `Bash` and full computer-use, giving agents a real terminal session they can drive — and a human can attach to.
 
-> **This is a fork.** The original agent-pty is by **[AakeshF](https://github.com/AakeshF/agent-pty)** — all of the core design and API below is upstream's. This fork adds **native Windows support**: a real MSYS2 `tmux.exe` (no WSL) driven from native Windows Python, with **PowerShell 7 panes by default**. See **[`windows/README.md`](windows/README.md)** for setup, and [`NOTICE`](NOTICE) for credits. Windows port by Sam Dotson.
+> **win-pty — the Windows fork of agent-pty.** The original agent-pty is by **[AakeshF](https://github.com/AakeshF/agent-pty)** — all of the core design and API below is upstream's. This fork adds **native Windows support**: a real MSYS2 `tmux.exe` (no WSL) driven from native Windows Python, with **PowerShell 7 panes by default**. The importable package stays `agent_pty` for drop-in compatibility. See **[`windows/README.md`](windows/README.md)** for setup, and [`NOTICE`](NOTICE) for credits. Windows port by Sam Dotson.
 
 ## Install
 
