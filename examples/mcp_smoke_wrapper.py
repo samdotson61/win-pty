@@ -2,15 +2,20 @@
 configured in .claude.json. Confirms stdio works through the wrapper and that
 pwsh panes inherit a full PATH (System32 reachable)."""
 import asyncio
+from pathlib import Path
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
+
+# Launcher sits at the repo root, next to this examples/ dir — derive it so the
+# test runs from any checkout location, not just one machine.
+LAUNCHER = str(Path(__file__).resolve().parent.parent / "agent-pty-mcp.cmd")
 
 
 async def main():
     params = StdioServerParameters(
         command="cmd.exe",
-        args=["/c", r"C:\msys64\home\Sam\agent-pty\agent-pty-mcp.cmd"],
+        args=["/c", LAUNCHER],
     )
     async with stdio_client(params) as (read, write):
         async with ClientSession(read, write) as sess:

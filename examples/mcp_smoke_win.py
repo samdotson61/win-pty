@@ -3,11 +3,13 @@
 verifies a DEFAULT pane is PowerShell 7."""
 import asyncio
 import os
+from pathlib import Path
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
-VENV_PY = r"C:\msys64\home\Sam\agent-pty\.venv-win\Scripts\python.exe"
+# Resolve the venv python relative to this checkout so the test is portable.
+VENV_PY = str(Path(__file__).resolve().parent.parent / ".venv-win" / "Scripts" / "python.exe")
 PATH = r"C:\msys64\usr\bin;C:\Program Files\PowerShell\7;" + os.environ.get("PATH", "")
 
 
