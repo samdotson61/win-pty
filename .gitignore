@@ -17,3 +17,5 @@ build/
 # Go build artifacts
 /win-pty.exe
 go/win-pty.exe
+# Windows linker renames a locked (running) exe aside while rebuilding
+*.exe~

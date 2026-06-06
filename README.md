@@ -67,7 +67,8 @@ session; the human watching sees the panes appear live):
 ```powershell
 win-pty split h                    # split current pane left|right -> prints new pane id (e.g. %5)
 win-pty split v --cmd "bash -l"    # split top/bottom, running bash
-win-pty panes                      # list panes in this window: id active WxH command title
+win-pty panes                      # list: id [session:win.pane] active attached WxH command
+win-pty pane-info %5               # session/window, pane count, attached clients
 win-pty pane-send %5 "make<Enter>" # send keys to pane %5 (same key syntax as `send`)
 win-pty pane-capture %5            # read pane %5's rendered screen
 win-pty pane-layout tiled          # re-tile (even-horizontal | even-vertical | main-vertical | tiled)
@@ -77,6 +78,13 @@ win-pty pane-kill %5               # close a pane
 
 `win-pty --help` shows all subcommands. Override the tmux location with
 `WMUX_TMUX`, or the MSYS2 root with `MSYS2_ROOT`.
+
+**`split` reports the attached-client count** (also via `pane-info`): if it's
+`0`, no human is viewing that session, so the pane is invisible — the signal
+that you split a detached session instead of the window you're in. Splitting
+your own pane (the default) inside a session a human is attached to always shows
+≥1 client. This is what makes "I added panes to your window" verifiable rather
+than assumed.
 
 ## MCP server (for Claude Code and other agents)
 

@@ -82,6 +82,32 @@ func Split(target, dir, cmd, cwd string, percent int) (string, error) {
 	return id, nil
 }
 
+// PaneInfo returns a one-line summary of a pane's context: the session/window
+// it lives in, how many panes that window now has, and how many clients are
+// attached. The attached count is the anti-hallucination signal — 0 means NO
+// human is viewing that session, so whatever you just did is invisible (the
+// classic "I split a detached session and pretended it was the user's window"
+// mistake). Returns "" if the pane can't be described.
+func PaneInfo(id string) string {
+	out, code, _ := runCapture("display-message", "-p", "-t", id,
+		"#{session_name}|#{window_index}|#{window_name}|#{window_panes}|#{session_attached}")
+	if code != 0 {
+		return ""
+	}
+	f := strings.Split(strings.TrimSpace(out), "|")
+	if len(f) < 5 {
+		return ""
+	}
+	sess, win, wname, npanes, attached := f[0], f[1], f[2], f[3], f[4]
+	msg := fmt.Sprintf("session '%s' window %s (%s) now has %s pane(s); %s client(s) attached",
+		sess, win, wname, npanes, attached)
+	if attached == "0" {
+		msg += " — WARNING: 0 clients attached, so NO human is viewing this session and this pane is invisible. " +
+			"To split the window a human is watching, run the agent INSIDE that wmux session (so $TMUX_PANE points at it), or target a pane from `pane_list all` whose session shows clients attached."
+	}
+	return msg
+}
+
 // PaneList lists panes in target's window (default: the agent's current
 // window), or every pane on the server when target == "all". Columns:
 // "<pane_id> <active 1/0> <WxH> <command> <title>".
@@ -97,7 +123,7 @@ func PaneList(target string) (string, error) {
 		}
 		args = append(args, "-t", t)
 	}
-	args = append(args, "-F", "#{pane_id} #{pane_active} #{pane_width}x#{pane_height} #{pane_current_command} #{pane_title}")
+	args = append(args, "-F", "#{pane_id} [#{session_name}:#{window_index}.#{pane_index}] active=#{pane_active} attached=#{session_attached} #{pane_width}x#{pane_height} #{pane_current_command}")
 	out, code, err := runCapture(args...)
 	if code != 0 {
 		return "", fmt.Errorf("list-panes failed: %v %s", err, strings.TrimSpace(out))

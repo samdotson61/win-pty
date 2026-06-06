@@ -83,6 +83,15 @@ func main() {
 			layout = args[0]
 		}
 		err = PaneLayout("", layout)
+	case "pane-info", "pinfo":
+		err = needN(args, 1, "pane-info <pane>", func() error {
+			info := PaneInfo(args[0])
+			if info == "" {
+				return fmt.Errorf("no such pane %q", args[0])
+			}
+			fmt.Println(info)
+			return nil
+		})
 	case "-h", "--help", "help":
 		fmt.Println(usage)
 		return
@@ -109,7 +118,8 @@ const usage = `win-pty — persistent PTY tool for LLM agents (native Windows, t
 
  Panes (split & drive the agent's CURRENT wmux window; the human sees it live):
   win-pty split [h|v] [--target P] [--cmd C] [--cwd D] [--percent N]   -> new pane id
-  win-pty panes [all]                  list panes: id active WxH command title
+  win-pty panes [all]                  list panes: id [session:win.pane] active attached WxH command
+  win-pty pane-info <pane>             session/window, pane count, attached clients (0 = nobody sees it)
   win-pty pane-send <pane> <text>      send keys to a pane (same key syntax as send)
   win-pty pane-capture <pane>          rendered text of a pane
   win-pty pane-select <pane>           focus a pane
@@ -285,7 +295,7 @@ type paneLayoutIn struct {
 func runMCP() error {
 	s := mcp.NewServer(&mcp.Implementation{Name: "win-pty", Version: "1.0.0"}, nil)
 
-	mcp.AddTool(s, &mcp.Tool{Name: "pty_spawn", Description: "Create a persistent tmux-backed terminal session. cmd empty = default shell (PowerShell 7)."},
+	mcp.AddTool(s, &mcp.Tool{Name: "pty_spawn", Description: "Create a SEPARATE, detached background terminal session (agent-pty-<name>). It is NOT a pane in your current window — a human attached to a wmux session will NOT see it. To add panes to the window you're in (visible to the human), use pane_split instead. Use pty_spawn only for headless background terminals you drive programmatically. cmd empty = default shell (PowerShell 7)."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in spawnIn) (*mcp.CallToolResult, any, error) {
 			cols, rows := in.Cols, in.Rows
 			if cols == 0 {
@@ -349,13 +359,17 @@ func runMCP() error {
 
 	// ---- pane control: split & drive the agent's CURRENT wmux window --------
 
-	mcp.AddTool(s, &mcp.Tool{Name: "pane_split", Description: "Split a pane in the agent's CURRENT wmux window, creating a new pane the human sees appear live. dir 'h'=side-by-side, 'v'=stacked; default target is the agent's own pane. Returns the new pane id (e.g. %5). Focus stays on the agent's pane."},
+	mcp.AddTool(s, &mcp.Tool{Name: "pane_split", Description: "Split a pane in the agent's CURRENT wmux window, creating a new pane the human sees appear live. dir 'h'=side-by-side, 'v'=stacked; default target is the agent's own pane ($TMUX_PANE). Returns the new pane id (e.g. %5) plus its session/window and the attached-client count — if that count is 0, no human is watching and you split the wrong thing. Focus stays on the agent's pane."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in splitIn) (*mcp.CallToolResult, any, error) {
 			id, err := Split(in.Target, in.Dir, in.Cmd, in.Cwd, in.Percent)
 			if err != nil {
 				return nil, nil, err
 			}
-			return textResult(id), nil, nil
+			msg := id
+			if info := PaneInfo(id); info != "" {
+				msg = "created pane " + id + " — " + info
+			}
+			return textResult(msg), nil, nil
 		})
 
 	mcp.AddTool(s, &mcp.Tool{Name: "pane_send", Description: "Send keystrokes (literal text + named keys like <Enter>, <C-c>, <Up>) to a specific pane by id."},
