@@ -43,28 +43,48 @@ Errors: `SessionExistsError`, `SessionNotFoundError`, `KeyParseError`, plus stdl
 
 ## CLI
 
-```bash
-agent-pty spawn demo --cmd "python3 -q"
-agent-pty wait-for demo ">>>"
-agent-pty send demo $'x = 21\n'
-agent-pty snapshot demo
-agent-pty kill demo
+Installing win-pty puts the `win-pty` command on your PATH (the upstream
+`agent-pty` name is kept as an alias, so both work):
+
+```powershell
+win-pty spawn demo                 # default pane = PowerShell 7
+win-pty spawn demo --cmd "bash -l" # or an explicit shell/command
+win-pty wait-for demo "PS "
+win-pty send demo "Write-Output (2+2)<Enter>"
+win-pty snapshot demo
+win-pty list
+win-pty kill demo
 ```
 
-`agent-pty list` shows currently-managed sessions. `agent-pty <subcommand> --help` for per-command flags.
+`win-pty <subcommand> --help` shows per-command flags. On Windows the
+`.venv-win\Scripts\win-pty.exe` script is created on install.
 
 ## MCP server (for Claude Code and other agents)
 
-The package ships an MCP server (`agent-pty-mcp`) that exposes the API as native tool calls over stdio JSON-RPC. Tools registered: `pty_spawn`, `pty_send`, `pty_snapshot`, `pty_wait_for`, `pty_list`, `pty_kill`.
+The package ships an MCP server — `win-pty-mcp` (alias `agent-pty-mcp`) — that
+exposes the API as native tool calls over stdio JSON-RPC. Tools registered:
+`pty_spawn`, `pty_send`, `pty_snapshot`, `pty_wait_for`, `pty_list`, `pty_kill`.
 
-Register with the Claude Code CLI:
+On Windows, register it with the `.cmd` launcher (see
+[`windows/README.md`](windows/README.md)) so tmux and pwsh are on PATH:
 
-```bash
-claude mcp add --scope user agent-pty /absolute/path/to/.venv/bin/agent-pty-mcp
-claude mcp list   # should show agent-pty as healthy
+```json
+"agent-pty": {
+  "type": "stdio",
+  "command": "cmd.exe",
+  "args": ["/c", "C:\\msys64\\home\\<you>\\agent-pty\\agent-pty-mcp.cmd"]
+}
 ```
 
-Restart Claude Code; the agent will see the tools natively. Validate the server itself with the smoke script: `python examples/mcp_smoke.py` — exercises the full stdio roundtrip independent of any MCP client.
+On POSIX, register the entry point directly:
+
+```bash
+claude mcp add --scope user win-pty /absolute/path/to/.venv/bin/win-pty-mcp
+```
+
+Restart Claude Code (or reconnect via `/mcp`). Validate the server with
+`python examples/mcp_smoke_wrapper.py` (Windows) or `examples/mcp_smoke.py`
+(POSIX) — each exercises the full stdio roundtrip independent of any MCP client.
 
 ## Roadmap
 

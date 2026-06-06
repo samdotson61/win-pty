@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 
 from agent_pty import (
@@ -11,9 +12,19 @@ from agent_pty import (
 )
 
 
+def _prog_name() -> str:
+    # Reflect however the CLI was invoked: `win-pty` or `agent-pty` (both entry
+    # points map here). Falls back to "win-pty" when argv[0] is unavailable.
+    name = os.path.basename(sys.argv[0] or "win-pty")
+    for ext in (".exe", ".py", ".cmd"):
+        if name.lower().endswith(ext):
+            name = name[: -len(ext)]
+    return name or "win-pty"
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="agent-pty",
+        prog=_prog_name(),
         description="Persistent PTY tool for LLM coding agents (tmux-backed).",
     )
     sub = parser.add_subparsers(dest="subcommand", required=True)
