@@ -47,6 +47,42 @@ func main() {
 		}
 	case "kill":
 		err = needN(args, 1, "kill <name>", func() error { return Kill(args[0]) })
+	case "split":
+		err = cliSplit(args)
+	case "panes", "pane-list":
+		var out string
+		out, err = PaneList(firstOr(args))
+		if err == nil {
+			fmt.Println(out)
+		}
+	case "pane-send", "psend":
+		err = needN(args, 2, "pane-send <pane> <text>", func() error { return PaneSend(args[0], args[1]) })
+	case "pane-capture", "pcap":
+		err = needN(args, 1, "pane-capture <pane>", func() error {
+			s, e := PaneCapture(args[0])
+			if e == nil {
+				fmt.Println(s)
+			}
+			return e
+		})
+	case "pane-kill", "pkill":
+		err = needN(args, 1, "pane-kill <pane>", func() error { return PaneKill(args[0]) })
+	case "pane-select", "pselect":
+		err = needN(args, 1, "pane-select <pane>", func() error { return PaneSelect(args[0]) })
+	case "pane-resize", "presize":
+		err = needN(args, 2, "pane-resize <pane> <U|D|L|R> [amount]", func() error {
+			amt := 5
+			if len(args) >= 3 {
+				fmt.Sscanf(args[2], "%d", &amt)
+			}
+			return PaneResize(args[0], args[1], amt)
+		})
+	case "pane-layout", "playout":
+		layout := ""
+		if len(args) >= 1 {
+			layout = args[0]
+		}
+		err = PaneLayout("", layout)
 	case "-h", "--help", "help":
 		fmt.Println(usage)
 		return
@@ -61,13 +97,25 @@ func main() {
 }
 
 const usage = `win-pty — persistent PTY tool for LLM agents (native Windows, tmux-backed)
+
+ Sessions (background, addressable by name):
   win-pty mcp                          run the MCP server (stdio)
   win-pty spawn <name> [--cmd C] [--cwd D] [--cols N] [--rows N]
   win-pty send <name> <text>           keys: <Enter> <Esc> <Tab> <C-c> <Up> ... ; << = literal <
   win-pty snapshot <name>
   win-pty wait-for <name> <pattern> [--timeout S]
   win-pty list
-  win-pty kill <name>`
+  win-pty kill <name>
+
+ Panes (split & drive the agent's CURRENT wmux window; the human sees it live):
+  win-pty split [h|v] [--target P] [--cmd C] [--cwd D] [--percent N]   -> new pane id
+  win-pty panes [all]                  list panes: id active WxH command title
+  win-pty pane-send <pane> <text>      send keys to a pane (same key syntax as send)
+  win-pty pane-capture <pane>          rendered text of a pane
+  win-pty pane-select <pane>           focus a pane
+  win-pty pane-resize <pane> <U|D|L|R> [amount]
+  win-pty pane-layout [even-horizontal|even-vertical|main-vertical|tiled]
+  win-pty pane-kill <pane>`
 
 func needN(args []string, n int, sig string, fn func() error) error {
 	if len(args) < n {
@@ -111,6 +159,32 @@ func cliSpawn(args []string) error {
 		return err
 	}
 	fmt.Println(pos[0])
+	return nil
+}
+
+func firstOr(args []string) string {
+	if len(args) > 0 {
+		return args[0]
+	}
+	return ""
+}
+
+// cliSplit: win-pty split [h|v] [--target P] [--cmd C] [--cwd D] [--percent N]
+func cliSplit(args []string) error {
+	opts, pos := parseOpts(args, map[string]bool{"dir": true, "target": true, "cmd": true, "cwd": true, "percent": true})
+	dir := opts["dir"]
+	if dir == "" && len(pos) >= 1 {
+		dir = pos[0] // allow positional direction: win-pty split h
+	}
+	pct := 0
+	if v := opts["percent"]; v != "" {
+		fmt.Sscanf(v, "%d", &pct)
+	}
+	id, err := Split(opts["target"], dir, opts["cmd"], opts["cwd"], pct)
+	if err != nil {
+		return err
+	}
+	fmt.Println(id)
 	return nil
 }
 
@@ -180,6 +254,34 @@ type waitIn struct {
 }
 type emptyIn struct{}
 
+// --- pane control (the agent's current wmux window) ---
+type splitIn struct {
+	Dir     string `json:"dir,omitempty" jsonschema:"'h' = side-by-side (left|right), 'v' = stacked (top/bottom). default h"`
+	Target  string `json:"target,omitempty" jsonschema:"pane id to split; default = the agent's current pane ($TMUX_PANE)"`
+	Cmd     string `json:"cmd,omitempty" jsonschema:"command for the new pane; empty = default shell (PowerShell 7)"`
+	Cwd     string `json:"cwd,omitempty" jsonschema:"working directory for the new pane"`
+	Percent int    `json:"percent,omitempty" jsonschema:"new pane size as a percent of the split dimension, e.g. 30"`
+}
+type paneSendIn struct {
+	Pane string `json:"pane" jsonschema:"target pane id, e.g. %5 (from pane_split or pane_list)"`
+	Text string `json:"text" jsonschema:"literal text + named keys, e.g. ls<Enter> or <C-c>"`
+}
+type paneIn struct {
+	Pane string `json:"pane" jsonschema:"target pane id, e.g. %5"`
+}
+type paneListIn struct {
+	Target string `json:"target,omitempty" jsonschema:"window/pane to list; default = the agent's current window. 'all' = every pane on the server"`
+}
+type paneResizeIn struct {
+	Pane   string `json:"pane" jsonschema:"target pane id"`
+	Dir    string `json:"dir" jsonschema:"U, D, L or R (up/down/left/right)"`
+	Amount int    `json:"amount,omitempty" jsonschema:"cells to resize by (default 5)"`
+}
+type paneLayoutIn struct {
+	Target string `json:"target,omitempty" jsonschema:"window to re-tile; default = current"`
+	Layout string `json:"layout,omitempty" jsonschema:"even-horizontal, even-vertical, main-horizontal, main-vertical, tiled (default tiled)"`
+}
+
 func runMCP() error {
 	s := mcp.NewServer(&mcp.Implementation{Name: "win-pty", Version: "1.0.0"}, nil)
 
@@ -240,6 +342,75 @@ func runMCP() error {
 	mcp.AddTool(s, &mcp.Tool{Name: "pty_kill", Description: "Kill a session and clean up its tmux state."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in nameIn) (*mcp.CallToolResult, any, error) {
 			if err := Kill(in.Name); err != nil {
+				return nil, nil, err
+			}
+			return textResult("ok"), nil, nil
+		})
+
+	// ---- pane control: split & drive the agent's CURRENT wmux window --------
+
+	mcp.AddTool(s, &mcp.Tool{Name: "pane_split", Description: "Split a pane in the agent's CURRENT wmux window, creating a new pane the human sees appear live. dir 'h'=side-by-side, 'v'=stacked; default target is the agent's own pane. Returns the new pane id (e.g. %5). Focus stays on the agent's pane."},
+		func(ctx context.Context, req *mcp.CallToolRequest, in splitIn) (*mcp.CallToolResult, any, error) {
+			id, err := Split(in.Target, in.Dir, in.Cmd, in.Cwd, in.Percent)
+			if err != nil {
+				return nil, nil, err
+			}
+			return textResult(id), nil, nil
+		})
+
+	mcp.AddTool(s, &mcp.Tool{Name: "pane_send", Description: "Send keystrokes (literal text + named keys like <Enter>, <C-c>, <Up>) to a specific pane by id."},
+		func(ctx context.Context, req *mcp.CallToolRequest, in paneSendIn) (*mcp.CallToolResult, any, error) {
+			if err := PaneSend(in.Pane, in.Text); err != nil {
+				return nil, nil, err
+			}
+			return textResult("ok"), nil, nil
+		})
+
+	mcp.AddTool(s, &mcp.Tool{Name: "pane_capture", Description: "Return the current rendered text of a pane by id."},
+		func(ctx context.Context, req *mcp.CallToolRequest, in paneIn) (*mcp.CallToolResult, any, error) {
+			out, err := PaneCapture(in.Pane)
+			if err != nil {
+				return nil, nil, err
+			}
+			return textResult(out), nil, nil
+		})
+
+	mcp.AddTool(s, &mcp.Tool{Name: "pane_list", Description: "List panes in the agent's current window (or target='all' for every pane). Columns: pane_id active(1/0) WxH command title."},
+		func(ctx context.Context, req *mcp.CallToolRequest, in paneListIn) (*mcp.CallToolResult, any, error) {
+			out, err := PaneList(in.Target)
+			if err != nil {
+				return nil, nil, err
+			}
+			return textResult(out), nil, nil
+		})
+
+	mcp.AddTool(s, &mcp.Tool{Name: "pane_kill", Description: "Kill a pane by id (closes its window if it was the last pane)."},
+		func(ctx context.Context, req *mcp.CallToolRequest, in paneIn) (*mcp.CallToolResult, any, error) {
+			if err := PaneKill(in.Pane); err != nil {
+				return nil, nil, err
+			}
+			return textResult("ok"), nil, nil
+		})
+
+	mcp.AddTool(s, &mcp.Tool{Name: "pane_select", Description: "Focus a pane by id — the human's cursor/keyboard moves to it."},
+		func(ctx context.Context, req *mcp.CallToolRequest, in paneIn) (*mcp.CallToolResult, any, error) {
+			if err := PaneSelect(in.Pane); err != nil {
+				return nil, nil, err
+			}
+			return textResult("ok"), nil, nil
+		})
+
+	mcp.AddTool(s, &mcp.Tool{Name: "pane_resize", Description: "Resize a pane by id: dir U/D/L/R, amount cells (default 5)."},
+		func(ctx context.Context, req *mcp.CallToolRequest, in paneResizeIn) (*mcp.CallToolResult, any, error) {
+			if err := PaneResize(in.Pane, in.Dir, in.Amount); err != nil {
+				return nil, nil, err
+			}
+			return textResult("ok"), nil, nil
+		})
+
+	mcp.AddTool(s, &mcp.Tool{Name: "pane_layout", Description: "Re-tile the current window with a layout: even-horizontal, even-vertical, main-horizontal, main-vertical, tiled (default tiled)."},
+		func(ctx context.Context, req *mcp.CallToolRequest, in paneLayoutIn) (*mcp.CallToolResult, any, error) {
+			if err := PaneLayout(in.Target, in.Layout); err != nil {
 				return nil, nil, err
 			}
 			return textResult("ok"), nil, nil

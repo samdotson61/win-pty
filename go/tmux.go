@@ -171,17 +171,23 @@ func Send(name, text string) error {
 	if !has(name) {
 		return fmt.Errorf("session %q not found", name)
 	}
+	return sendTo(full(name), text)
+}
+
+// sendTo sends a parsed key/text payload to any tmux target (a session like
+// "agent-pty-foo" or a pane id like "%5"). Shared by Send and PaneSend.
+func sendTo(target, text string) error {
 	segs, err := parseKeys(text)
 	if err != nil {
 		return err
 	}
 	for _, s := range segs {
 		if s.isKey {
-			if e := runQuiet("send-keys", "-t", full(name), s.val); e != nil {
+			if e := runQuiet("send-keys", "-t", target, s.val); e != nil {
 				return e
 			}
 		} else {
-			if e := pasteLiteral(name, s.val); e != nil {
+			if e := pasteLiteral(target, s.val); e != nil {
 				return e
 			}
 		}
@@ -189,7 +195,7 @@ func Send(name, text string) error {
 	return nil
 }
 
-func pasteLiteral(name, text string) error {
+func pasteLiteral(target, text string) error {
 	if text == "" {
 		return nil
 	}
@@ -199,7 +205,7 @@ func pasteLiteral(name, text string) error {
 	if err := c.Run(); err != nil {
 		return err
 	}
-	return runQuiet("paste-buffer", "-b", pasteBuf, "-t", full(name), "-d")
+	return runQuiet("paste-buffer", "-b", pasteBuf, "-t", target, "-d")
 }
 
 func itoa(n int) string { return fmt.Sprintf("%d", n) }

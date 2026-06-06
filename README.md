@@ -49,6 +49,8 @@ Errors: `SessionExistsError`, `SessionNotFoundError`, `KeyParseError`, plus stdl
 
 `install.ps1` puts `win-pty.exe` on your PATH:
 
+Sessions — background terminals addressed by name:
+
 ```powershell
 win-pty spawn demo                 # default pane = PowerShell 7
 win-pty spawn demo --cmd "bash -l" # or an explicit shell/command
@@ -59,15 +61,31 @@ win-pty list
 win-pty kill demo
 ```
 
+Panes — split and drive the **current** wmux window (run from inside a wmux
+session; the human watching sees the panes appear live):
+
+```powershell
+win-pty split h                    # split current pane left|right -> prints new pane id (e.g. %5)
+win-pty split v --cmd "bash -l"    # split top/bottom, running bash
+win-pty panes                      # list panes in this window: id active WxH command title
+win-pty pane-send %5 "make<Enter>" # send keys to pane %5 (same key syntax as `send`)
+win-pty pane-capture %5            # read pane %5's rendered screen
+win-pty pane-layout tiled          # re-tile (even-horizontal | even-vertical | main-vertical | tiled)
+win-pty pane-select %5             # move focus to a pane
+win-pty pane-kill %5               # close a pane
+```
+
 `win-pty --help` shows all subcommands. Override the tmux location with
 `WMUX_TMUX`, or the MSYS2 root with `MSYS2_ROOT`.
 
 ## MCP server (for Claude Code and other agents)
 
-The same binary runs the MCP server over stdio with `win-pty mcp`. Tools
-registered: `pty_spawn`, `pty_send`, `pty_snapshot`, `pty_wait_for`, `pty_list`,
-`pty_kill`. No launcher/wrapper or env block is needed — the binary finds tmux
-itself and sets the cygwin env (`MSYS=noglob`, UTF-8) internally.
+The same binary runs the MCP server over stdio with `win-pty mcp`. No
+launcher/wrapper or env block is needed — the binary finds tmux itself and sets
+the cygwin env (`MSYS=noglob`, UTF-8) internally. Tools registered:
+
+- **Sessions** (background, addressable by name): `pty_spawn`, `pty_send`, `pty_snapshot`, `pty_wait_for`, `pty_list`, `pty_kill`.
+- **Panes** (split & drive the agent's *current* wmux window — the human sees it live): `pane_split`, `pane_send`, `pane_capture`, `pane_list`, `pane_kill`, `pane_select`, `pane_resize`, `pane_layout`. `pane_split` defaults its target to the agent's own pane via `$TMUX_PANE`, so "split my window" just works when the agent runs inside wmux.
 
 Register in `~/.claude.json` (the installer prints this with your real path):
 
