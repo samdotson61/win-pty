@@ -83,10 +83,22 @@ Restart Claude Code (or reconnect via `/mcp`).
 
 ## Use
 
-- `pty_spawn` with no command → a PowerShell 7 pane. Pass `cmd="bash -l"` for
-  bash. The 6 `pty_*` tools (spawn/send/snapshot/wait_for/list/kill) work as
-  upstream.
-- Watch or take over any session from any PowerShell window while the MCP is
+- **From an agent (MCP):** `pty_spawn` with no command → a PowerShell 7 pane.
+  Pass `cmd="bash -l"` for bash. The 6 `pty_*` tools
+  (spawn/send/snapshot/wait_for/list/kill) work as upstream.
+- **From your own shell (CLI):** installing the package puts the **`win-pty`**
+  command on PATH (`.venv-win\Scripts\win-pty.exe`; `agent-pty` is kept as an
+  alias):
+
+  ```powershell
+  win-pty spawn demo                 # default pane = PowerShell 7
+  win-pty send demo "Write-Output (2+2)<Enter>"
+  win-pty snapshot demo
+  win-pty list
+  win-pty kill demo
+  ```
+
+- Watch or take over any session from any PowerShell window while the MCP/CLI is
   running:
 
   ```powershell
@@ -95,6 +107,8 @@ Restart Claude Code (or reconnect via `/mcp`).
 
   Inside tmux: `prefix + B` opens a bash window, `prefix + b` splits the current
   pane into bash, `prefix + R` reloads the config. (Default prefix is `Ctrl-b`.)
+- For a friendlier session-management CLI (`wmux new -t test`, `wmux ls`,
+  `wmux attach`/`kill`), see the companion **[winmux](https://github.com/samdotson61/winmux)** repo.
 
 ## Verify
 
