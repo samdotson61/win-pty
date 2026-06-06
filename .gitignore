@@ -13,3 +13,7 @@ build/
 # Windows native port
 .venv-win/
 /agent-pty-mcp.cmd
+
+# Go build artifacts
+/win-pty.exe
+go/win-pty.exe

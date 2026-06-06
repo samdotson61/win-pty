@@ -1,16 +1,20 @@
-# win-pty (agent-pty for Windows)
+# win-pty (agent-pty for Windows, in Go)
 
 A persistent PTY tool for LLM coding agents. Closes the gap between stateless `Bash` and full computer-use, giving agents a real terminal session they can drive — and a human can attach to.
 
-> **win-pty — the Windows fork of agent-pty.** The original agent-pty is by **[AakeshF](https://github.com/AakeshF/agent-pty)** — all of the core design and API below is upstream's. This fork adds **native Windows support**: a real MSYS2 `tmux.exe` (no WSL) driven from native Windows Python, with **PowerShell 7 panes by default**. The importable package stays `agent_pty` for drop-in compatibility. See **[`windows/README.md`](windows/README.md)** for setup, and [`NOTICE`](NOTICE) for credits. Windows port by Sam Dotson.
+> **win-pty** is a native-Windows, **single-binary Go** implementation of the agent-pty idea by **[AakeshF](https://github.com/AakeshF/agent-pty)** (whose original Python design and API this follows). It drives a real MSYS2 `tmux.exe` (no WSL) with **PowerShell 7 panes by default**, and ships as one static `win-pty.exe` — no Python, venv, or pip. The original Python fork is retained under [`agent_pty/`](agent_pty/) for lineage/credit; see [`NOTICE`](NOTICE). Go rewrite + Windows port by Sam Dotson.
 
 ## Install
 
-Requires Python 3.11+ and tmux 3.5+.
+One-click. Needs the MSYS2 tmux (install [winmux](https://github.com/samdotson61/winmux) first) and Go (the installer fetches it via winget if missing):
 
-```bash
-uv venv && uv pip install -e ".[dev]"
+```powershell
+./install.ps1          # or double-click install.cmd
 ```
+
+This checks for Go, compiles a single static `win-pty.exe` (tool + all dependencies in one executable), puts it on your PATH, and prints the MCP registration. Idempotent.
+
+> The Go source is in [`go/`](go/). The retained Python implementation ([`agent_pty/`](agent_pty/), `pip install -e .`) still works and is the upstream-compatible API, but the Go binary is what the installer builds and what the MCP/CLI run.
 
 ## Quickstart
 
@@ -43,8 +47,7 @@ Errors: `SessionExistsError`, `SessionNotFoundError`, `KeyParseError`, plus stdl
 
 ## CLI
 
-Installing win-pty puts the `win-pty` command on your PATH (the upstream
-`agent-pty` name is kept as an alias, so both work):
+`install.ps1` puts `win-pty.exe` on your PATH:
 
 ```powershell
 win-pty spawn demo                 # default pane = PowerShell 7
@@ -56,35 +59,28 @@ win-pty list
 win-pty kill demo
 ```
 
-`win-pty <subcommand> --help` shows per-command flags. On Windows the
-`.venv-win\Scripts\win-pty.exe` script is created on install.
+`win-pty --help` shows all subcommands. Override the tmux location with
+`WMUX_TMUX`, or the MSYS2 root with `MSYS2_ROOT`.
 
 ## MCP server (for Claude Code and other agents)
 
-The package ships an MCP server — `win-pty-mcp` (alias `agent-pty-mcp`) — that
-exposes the API as native tool calls over stdio JSON-RPC. Tools registered:
-`pty_spawn`, `pty_send`, `pty_snapshot`, `pty_wait_for`, `pty_list`, `pty_kill`.
+The same binary runs the MCP server over stdio with `win-pty mcp`. Tools
+registered: `pty_spawn`, `pty_send`, `pty_snapshot`, `pty_wait_for`, `pty_list`,
+`pty_kill`. No launcher/wrapper or env block is needed — the binary finds tmux
+itself and sets the cygwin env (`MSYS=noglob`, UTF-8) internally.
 
-On Windows, register it with the `.cmd` launcher (see
-[`windows/README.md`](windows/README.md)) so tmux and pwsh are on PATH:
+Register in `~/.claude.json` (the installer prints this with your real path):
 
 ```json
-"agent-pty": {
+"win-pty": {
   "type": "stdio",
-  "command": "cmd.exe",
-  "args": ["/c", "C:\\msys64\\home\\<you>\\agent-pty\\agent-pty-mcp.cmd"]
+  "command": "C:\\path\\to\\win-pty\\win-pty.exe",
+  "args": ["mcp"]
 }
 ```
 
-On POSIX, register the entry point directly:
-
-```bash
-claude mcp add --scope user win-pty /absolute/path/to/.venv/bin/win-pty-mcp
-```
-
-Restart Claude Code (or reconnect via `/mcp`). Validate the server with
-`python examples/mcp_smoke_wrapper.py` (Windows) or `examples/mcp_smoke.py`
-(POSIX) — each exercises the full stdio roundtrip independent of any MCP client.
+Restart Claude Code (or reconnect via `/mcp`). Validate the server over stdio
+with any MCP client pointed at `win-pty.exe mcp` (e.g. `examples/mcp_smoke_wrapper.py`).
 
 ## Roadmap
 
