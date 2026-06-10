@@ -1,5 +1,14 @@
 # win-pty (agent-pty for Windows, in Go)
 
+> [!IMPORTANT]
+> **⚠️ DEPRECATED — superseded by [gpty](https://github.com/samdotson61/gpty).**
+> win-pty and [winmux](https://github.com/samdotson61/winmux) were merged into
+> the single cross-platform [gpty](https://github.com/samdotson61/gpty) module:
+> **`gpty` replaces `win-pty`** — the MCP tool names are unchanged, so existing
+> agent registrations upgrade by changing only the command path — and `gmux`
+> replaces `wmux`. This repo is kept for history and receives no further
+> updates.
+
 A persistent PTY tool for LLM coding agents. Closes the gap between stateless `Bash` and full computer-use, giving agents a real terminal session they can drive — and a human can attach to.
 
 > **win-pty** is a native-Windows, **single-binary Go** implementation of the agent-pty idea by **[AakeshF](https://github.com/AakeshF/agent-pty)** (whose original Python design and API this follows). It drives a real MSYS2 `tmux.exe` (no WSL) with **PowerShell 7 panes by default**, and ships as one static `win-pty.exe` — no Python, venv, or pip. The original Python fork is retained under [`agent_pty/`](agent_pty/) for lineage/credit; see [`NOTICE`](NOTICE). Go rewrite + Windows port by Sam Dotson.
